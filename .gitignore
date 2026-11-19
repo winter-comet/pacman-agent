@@ -1,0 +1,9 @@
+# Python virtual environment and cache
+venv/
+__pycache__/
+
+# PyCharm settings
+.idea/
+
+# Game logs, replays and scores written by capture.py
+www/
