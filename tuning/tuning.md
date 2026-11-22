@@ -1,3 +1,3 @@
 # Agent tuning script
 
-**TO-DO:** Finish script for agent tuning inside the `/tuning` directory. See `tune.sbatch` outline.
+**TO-DO:** Finish SLURM script for agent parameter tuning inside the `/tuning` directory. See `tune.sbatch` draft.

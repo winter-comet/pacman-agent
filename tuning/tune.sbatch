@@ -9,4 +9,4 @@
 #SBATCH --output=tuning/slurm-%j.out
 
 cd "$SLURM_SUBMIT_DIR"
-## TODO: Finish script for agent tuning.
+## TODO: Finish script for agent parameter tuning.
