@@ -1,42 +1,44 @@
-"""Parameters: every number the HPC tunes, with file I/O and the [0, 1] vectors the optimizer searches. Thresholds are named mode_*, scorer weights <mode>_<feature>."""
+"""Parameters storage component. Thresholds are named mode_*, scorer weights <mode>_<feature>."""
+
+
 import json
 import os
 from dataclasses import dataclass
 
-_PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_PARAMS_FILE = os.path.join(_PACKAGE_DIR, 'params.json')
+
+_PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))        # Directory of all component packages
+DEFAULT_PARAMS_FILE = os.path.join(_PACKAGE_DIR, 'params.json')  # File path to default parameters in JSON format
 
 
 @dataclass(frozen=True)
 class ParamSpec:
-    name: str             # key under which the value is stored in the params dict and in params.json
-    default: float   # hand-set starting value, used until a tuning run replaces it
-    low: float       # smallest value the optimizer may try
-    high: float      # largest value the optimizer may try
-    component: str        # module whose behavior the parameter changes
-    description: str      # what the parameter does, for whoever reads the tuning results
-    is_int: bool = False  # the parameter counts moves, food or turns, so it is rounded to an integer
+    name: str             # Key under which the value is stored in the params dict and in params.json
+    default: float   # Hand-set starting value, used until a tuning run replaces it
+    low: float       # Smallest value the optimizer may try
+    high: float      # Largest value the optimizer may try
+    component: str        # Module whose behavior the parameter changes
+    description: str      # What the parameter does, for whoever reads the tuning results
+    is_int: bool = False  # The parameter counts moves, food or turns, so it is rounded to an integer
 
 
 PARAM_SPECS = (
+    # Thresholds
     ParamSpec('mode_carry_threshold', 5, 1, 15, 'mode_rules',
-              'Food carried at which the agent heads home', True),
+              'Food count at which the agent holding it starts retreating', True),
     ParamSpec('mode_return_margin', 6, 0, 30, 'mode_rules',
-              'Spare moves kept for the trip home before time runs out', True),
+              'Additional spare moves kept for the retreat before time runs out', True),
     ParamSpec('mode_flee_radius', 3, 0, 8, 'mode_rules',
-              'Head home when carrying food and an active ghost is this close', True),
+              'The agent should start retreating when an enemy ghost is this close', True),
     ParamSpec('mode_defender_idle_turns', 100, 0, 300, 'mode_rules',
-              'Team turns (both agents count) without invaders after which the defender attacks',
-              True),
+              'Team turns without invaders after which the defender attacks', True),
     ParamSpec('mode_scared_attack_timer', 40, 0, 40, 'mode_rules',
-              'The defender attacks while scared for more moves than this (40: never; it shadows)',
-              True),
+              'The defender attacks while being a ghost for more moves than this (40: never - the ghost effect lasts 40 moves itself)', True),
     ParamSpec('mode_hold_lead', 4, 1, 20, 'mode_rules',
-              'Late-game lead at which both agents defend', True),
+              'Late-game lead at which both agents start defending', True),
     ParamSpec('mode_late_game_moves', 60, 0, 300, 'mode_rules',
-              'Own moves left from which the late-game rules apply', True),
+              'Team\'s moves left until late-game starts', True),
 
-
+    # Decision weights
     ParamSpec('attack_score_gain', 100.0, 0.0, 500.0, 'scorer',
               'Per food banked by this move'),
     ParamSpec('attack_food_eaten', 100.0, 0.0, 500.0, 'scorer',
@@ -57,8 +59,6 @@ PARAM_SPECS = (
               'Standing still'),
     ParamSpec('attack_reverse', -2.0, -30.0, 0.0, 'scorer',
               'Turning back the way we came'),
-
-
     ParamSpec('return_score_gain', 300.0, 0.0, 1000.0, 'scorer',
               'Per food banked by this move'),
     ParamSpec('return_home_distance', -5.0, -30.0, 0.0, 'scorer',
@@ -73,8 +73,6 @@ PARAM_SPECS = (
               'This move gets us eaten'),
     ParamSpec('return_stop', -50.0, -300.0, 0.0, 'scorer',
               'Standing still'),
-
-
     ParamSpec('defend_on_defense', 100.0, 0.0, 500.0, 'scorer',
               'Staying a ghost on our own side'),
     ParamSpec('defend_num_invaders', -1000.0, -3000.0, 0.0, 'scorer',
@@ -97,7 +95,7 @@ PARAM_SPECS = (
 
 
 def default_params():
-    """The hand-set default params as {name: value}."""
+    """The hand-set default params as {name: value}. Performs rounding using _cast."""
     params = {}
     for spec in PARAM_SPECS:
         params[spec.name] = _cast(spec, spec.default)
@@ -105,7 +103,7 @@ def default_params():
 
 
 def spec_by_name():
-    """{name: ParamSpec}."""
+    """The hand-set default params as {name: ParamSpec}."""
     specs = {}
     for spec in PARAM_SPECS:
         specs[spec.name] = spec
@@ -123,7 +121,7 @@ def param_names(component=None):
 
 
 def clip_to_bounds(values):
-    """Known values clipped into [low, high], with integer parameters being rounded."""
+    """Values ({name: value}) clipped into [low, high], with integer parameters being rounded using _cast."""
     specs = spec_by_name()
     clipped = {}
     for name, value in values.items():
@@ -160,63 +158,9 @@ def load_params(path=None):
             unknown.append(name)
     if unknown:
         unknown.sort()
-        raise ValueError('Unknown parameter names in %s: %s' % (path, ', '.join(unknown)))
+        raise ValueError(f'Unknown parameter names in {path}: {", ".join(unknown)}')
     params.update(clip_to_bounds(values))
     return params
-
-
-def save_params(params, path):
-    """Write params as JSON in PARAM_SPECS order."""
-    ordered = {}
-    for spec in PARAM_SPECS:
-        ordered[spec.name] = params[spec.name]
-    with open(path, 'w', encoding='utf-8') as handle:
-        json.dump(ordered, handle, indent=2)
-        handle.write('\n')
-
-
-def params_to_vector(params):
-    """Raw values in PARAM_SPECS order."""
-    vector = []
-    for spec in PARAM_SPECS:
-        vector.append(float(params[spec.name]))
-    return vector
-
-
-def params_from_vector(vector):
-    """Inverse of params_to_vector. Clips to bounds and rounds integer parameters."""
-    if len(vector) != len(PARAM_SPECS):
-        raise ValueError('Expected %d values, got %d' % (len(PARAM_SPECS), len(vector)))
-    values = {}
-    for spec, value in zip(PARAM_SPECS, vector):
-        values[spec.name] = value
-    return clip_to_bounds(values)
-
-
-def to_unit_vector(params):
-    """Every value scaled to [0, 1] inside its bounds."""
-    unit = []
-    for spec in PARAM_SPECS:
-        offset = float(params[spec.name]) - spec.low
-        span = spec.high - spec.low
-        unit.append(offset / span)
-    return unit
-
-
-def from_unit_vector(unit):
-    """Inverse of to_unit_vector. Clips values to [0, 1] beforehand."""
-    if len(unit) != len(PARAM_SPECS):
-        raise ValueError('Expected %d values, got %d' % (len(PARAM_SPECS), len(unit)))
-    raw = []
-    for spec, fraction in zip(PARAM_SPECS, unit):
-        fraction = float(fraction)
-        if fraction < 0.0:
-            fraction = 0.0
-        if fraction > 1.0:
-            fraction = 1.0
-        span = spec.high - spec.low
-        raw.append(spec.low + fraction * span)
-    return params_from_vector(raw)
 
 
 def _cast(spec, value):
@@ -229,5 +173,5 @@ def _read_json(path):
     with open(path, encoding='utf-8') as handle:
         values = json.load(handle)
     if not isinstance(values, dict):
-        raise ValueError('%s must contain a JSON object {name: value}' % path)
+        raise ValueError(f'{path} must contain a JSON object {{name: value}}')
     return values

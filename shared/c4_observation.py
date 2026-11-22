@@ -1,8 +1,10 @@
-"""Turn observation: what this agent knows at the start of its turn. Unseen enemies still
-show is_pacman, so the invader count is exact."""
+"""Turn observation: what this agent knows at the start of its turn. Unseen enemies still show is_pacman, so the invader count is exact."""
+
+
 import time
 
-SCARED_SAFETY = 2
+
+SCARED_SAFETY = 2  # The amount of remaining moves of enemy scared ghost can take before it returns to default state. When this threshold is reached and passed, we treat it as a possible danger.
 
 
 class TurnInfo:
@@ -13,21 +15,21 @@ class TurnInfo:
                  'nearest_ghost', 'visible_invaders', 'num_invaders', 'defended_food')
 
     def __init__(self):
-        self.started_at = 0.0       # when this turn's thinking began; the move time budget counts from here
-        self.position = None        # our cell this turn, (x, y)
-        self.is_pacman = False      # we are on the enemy half, so ghosts can eat us
-        self.carrying = 0           # food we bank by getting home
-        self.scared_timer = 0       # moves our ghost stays scared and cannot eat invaders (0 = not scared)
-        self.timeleft = 0           # moves left in the game for all four agents together
-        self.moves_left = 0         # moves left for this agent; drives the late-game and going-home rules
-        self.score = 0              # our lead, negative when behind; decides whether to hold or push late
-        self.food_left = 0          # enemy food still to eat; at 2 or fewer there is nothing left to take
-        self.home_distance = 0      # steps to the nearest cell where food gets banked
-        self.active_ghosts = []     # visible enemy ghosts that can still eat us, as cells
-        self.nearest_ghost = None   # maze distance to the closest active ghost, None if none is visible
-        self.visible_invaders = []  # enemy Pacmen we can see on our half, as cells
-        self.num_invaders = 0       # enemy Pacmen on our half, including the ones we cannot see
-        self.defended_food = []     # our food cells; one that disappears shows where an invader is
+        self.started_at = 0.0       # When this turn's thinking began; the move time budget counts from here
+        self.position = None        # Our cell this turn, (x, y)
+        self.is_pacman = False      # Our state: Pacman / Ghost
+        self.carrying = 0           # Our food we're banking by getting home
+        self.timeleft = 0           # Moves left in the game for all four agents together
+        self.scared_timer = 0       # Moves our ghost stays scared and cannot eat invaders (0 = not scared)
+        self.moves_left = 0         # Moves left for this agent (decides the late-game and going-home behavior)
+        self.score = 0              # Our lead, negative when behind (decides whether to hold or push late behavior)
+        self.food_left = 0          # Enemy food still to eat; at 2 or fewer there is nothing left to take
+        self.home_distance = 0      # Steps to the nearest cell where food gets banked
+        self.active_ghosts = []     # Visible enemy ghosts that can still eat us, as cells
+        self.nearest_ghost = None   # Maze distance to the closest active ghost, None if none is visible
+        self.visible_invaders = []  # Enemy Pacmen we can see on our half, as cells
+        self.num_invaders = 0       # Enemy Pacmen on our half, including the ones we cannot see
+        self.defended_food = []     # Our food cells; one that disappears shows where an invader is
 
 
 def observe_turn(agent, game_state, team):

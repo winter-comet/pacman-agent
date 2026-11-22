@@ -1,4 +1,6 @@
 """Match start: one TeamContext per team, created by my_team.create_team()."""
+
+
 from .c2_parameters import load_params
 
 
@@ -8,12 +10,12 @@ class TeamContext:
     __slots__ = ('is_red', 'indices', 'params', 'debug', 'map_info', 'memory')
 
     def __init__(self, is_red, indices, params, debug):
-        self.is_red = is_red    # which half is home: where food gets banked and what the defender guards
-        self.indices = indices  # (first, second) agent indices; the lower one resets the team each game
-        self.params = params    # tuned weights and thresholds behind every decision, {name: value}
-        self.debug = debug      # lets errors surface during testing instead of a silent fallback move
-        self.map_info = None    # static map facts of the current game (c3_startup.MapInfo)
-        self.memory = None      # what both agents remember during the current game (c5_team_memory.TeamMemory)
+        self.is_red = is_red    # Which half is home: where food gets banked and what the defender guards
+        self.indices = indices  # Our agent indices (first, second); the lower one resets the team each game
+        self.params = params    # Tuned weights and thresholds behind every decision, {name: value}
+        self.debug = debug      # Lets errors surface during testing instead of a silent fallback move
+        self.map_info = None    # Static map facts of the current game (MapInfo)
+        self.memory = None      # What both agents remember during the current game (TeamMemory)
 
 
 def create_team_context(first_index, second_index, is_red, params_path=None, debug=None):

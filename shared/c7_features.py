@@ -1,4 +1,6 @@
 """Successor features: what each legal move leads to, one step ahead."""
+
+
 from contest.game import Directions
 from contest.util import manhattan_distance
 
@@ -7,9 +9,12 @@ from .c4_observation import enemy_positions
 from .c5_team_memory import lost_food_target
 from .c6_mode_rules import ATTACK, DEFEND, RETURN
 
-DANGER_RADIUS = 5
-SCARED_KEEP_AWAY = 2
 
+DANGER_RADIUS = 5     # The maze distance at which an active ghost becomes a danger to our Pacman. When it is this close or closer, the distance to the nearest capsule counts and every step closer adds to ghost_closeness.
+SCARED_KEEP_AWAY = 2  # The maze distance our scared ghost keeps from invaders, since they can eat it. Every step closer than this adds to scared_closeness.
+
+# Stores the names of the features each mode scores a move by in a dictionary {mode: (feature, ...)}. The weight of each
+# feature is the <mode>_<feature> parameter (see PARAM_SPECS).
 FEATURE_NAMES = {
     ATTACK: ('score_gain', 'food_eaten', 'food_distance', 'capsule_distance', 'ghost_closeness',
              'ghost_adjacent', 'died', 'carry_risk', 'stop', 'reverse'),
@@ -21,7 +26,7 @@ FEATURE_NAMES = {
 
 
 def successor_features(mode, agent, game_state, successor, action, turn, team):
-    """{feature: value} of the move action, for the given mode."""
+    """The features of the move action for the given mode as {feature: value}."""
     if mode == ATTACK:
         return attack_features(agent, game_state, successor, action, turn, team)
     if mode == RETURN:
@@ -50,6 +55,7 @@ def attack_features(agent, game_state, successor, action, turn, team):
     features['ghost_closeness'] = closeness
     features['ghost_adjacent'] = adjacent
 
+    # Carried food is lost when we get eaten, so the risk grows with both the food carried and the steps home.
     steps_home = team.map_info.home_distance.get(position, 0)
     features['carry_risk'] = float(my_state.num_carrying * steps_home)
     return features
@@ -87,6 +93,8 @@ def defend_features(agent, game_state, successor, action, turn, team):
         features['on_defense'] = 0.0
     else:
         features['on_defense'] = 1.0
+
+    # Eating an invader sends it back to its start as a ghost, so the move that does it lowers this count.
     features['num_invaders'] = float(len(invaders))
 
     if invaders:
@@ -116,6 +124,7 @@ def common_features(agent, game_state, successor, action, turn, position):
     score_after = agent.get_score(successor)
     features['score_gain'] = float(score_after - score_before)
 
+    # An eaten agent respawns at its start cell, so its move jumps more than one cell.
     cells_moved = manhattan_distance(turn.position, position)
     if cells_moved > 1:
         features['died'] = 1.0
@@ -127,6 +136,7 @@ def common_features(agent, game_state, successor, action, turn, position):
     else:
         features['stop'] = 0.0
 
+    # Turning back is moving against our heading. Standing still is excluded, as Directions.REVERSE maps STOP to STOP.
     heading = game_state.get_agent_state(agent.index).configuration.direction
     if action != Directions.STOP and action == Directions.REVERSE[heading]:
         features['reverse'] = 1.0
@@ -160,7 +170,7 @@ def ghost_threat(position, is_pacman, ghosts, get_distance):
 
 
 def capsule_distance_if_threatened(agent, successor, position, ghost_distance, get_distance):
-    """Distance to the nearest capsule we can eat, but only while an active ghost is near."""
+    """Distance to the nearest capsule we can eat while an active ghost is near (see DANGER_RADIUS). Defaults to 0."""
     if ghost_distance is None:
         return 0.0
     if ghost_distance > DANGER_RADIUS:
@@ -171,7 +181,7 @@ def capsule_distance_if_threatened(agent, successor, position, ghost_distance, g
 
 
 def nearest(position, targets, get_distance, default=0):
-    """Smallest maze distance from position to any target, or default if there are none."""
+    """Smallest distance from position to any target, using get_distance. Defaults to default (0) if there are none."""
     if not targets:
         return default
     best = None

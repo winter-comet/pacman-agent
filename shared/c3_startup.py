@@ -7,14 +7,16 @@ class MapInfo:
     __slots__ = ('home_border', 'home_distance', 'home_side')
 
     def __init__(self, home_border, home_distance, home_side):
-        self.home_border = home_border      # cells where carried food gets banked; the patrol cell is one of them
-        self.home_distance = home_distance  # how far each cell is from banking food, {cell: steps}
-        self.home_side = home_side          # defender distances that never enter enemy territory, {a: {b: steps}}
+        self.home_border = home_border      # Cells where carried food gets banked including the patrol cell, (x, y)
+        self.home_distance = home_distance  # The distance in steps from a cell to banking food, {(x, y): steps}
+        self.home_side = home_side          # The distances in steps between a source and destination when moving on our territory only, {(xs, ys): {(xd, yd): steps}}
 
 
 def build_map_info(game_state, is_red, get_distance):
     """MapInfo for this game. get_distance is the agent's get_maze_distance."""
     walls = game_state.get_walls()
+
+    # Stores (x, y) coordinates that are not walls (i.e., are open).
     open_cells = []
     for x in range(walls.width):
         for y in range(walls.height):
@@ -66,12 +68,14 @@ def home_side_distances(walls, is_red):
     else:
         columns = range(half, walls.width)
 
+    # Stores (x, y) coordinates that are not walls (i.e., are open) AND are on our half.
     cells = set()
     for x in columns:
         for y in range(walls.height):
             if not walls[x][y]:
                 cells.add((x, y))
 
+    # Stores a list of (x, y) coordinates that can be reached from each (x, y) position.
     neighbours = {}
     for (x, y) in cells:
         adjacent = []
@@ -80,6 +84,8 @@ def home_side_distances(walls, is_red):
                 adjacent.append(candidate)
         neighbours[(x, y)] = adjacent
 
+    # Stores the number of steps required to reach a destination, d, from source, s, by moving across ONLY our half in a
+    # dictionary {(xs, ys): {(xd, yd): steps}}.
     table = {}
     for source in cells:
         reached = {source: 0}
@@ -96,18 +102,18 @@ def home_side_distances(walls, is_red):
     return table
 
 
-def home_side_distance(map_info, a, b, get_distance):
-    """Distance from a to b staying on our half. The normal maze distance if that is impossible."""
-    distances_from_a = map_info.home_side.get(a)
+def home_side_distance(map_info, source, destination, get_distance):
+    """Distance from source to destination staying on our half. Defaults to get_distance."""
+    distances_from_a = map_info.home_side.get(source)
     if distances_from_a is not None:
-        steps = distances_from_a.get(b)
+        steps = distances_from_a.get(destination)
         if steps is not None:
             return steps
-    return get_distance(a, b)
+    return get_distance(source, destination)
 
 
 def best_patrol_cell(map_info, food_cells, get_distance):
-    """Home border cell with the smallest total distance on team's half to the food we defend."""
+    """Home border cell with the smallest total distance on team's half to the food we defend. Defaults to middle position on home_border."""
     border = map_info.home_border
     if not border:
         return None
@@ -121,6 +127,8 @@ def best_patrol_cell(map_info, food_cells, get_distance):
         total = 0
         for food in food_cells:
             total += home_side_distance(map_info, cell, food, get_distance)
+
+        # Use order of comparison: totals -> cell x-coordinates -> cell y-coordinates
         if best_cell is None or (total, cell) < (best_total, best_cell):
             best_cell = cell
             best_total = total
